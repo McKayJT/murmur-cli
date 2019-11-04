@@ -1,9 +1,9 @@
-package main // import "layeh.com/murmur-cli"
+package main
 
 import (
 	"io"
 
-	"layeh.com/murmur-cli/MurmurRPC"
+	"github.com/MckayJT/murmur-cli/internal/MurmurRPC"
 )
 
 func init() {
