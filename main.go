@@ -146,8 +146,6 @@ func main() {
 	} else {
 		var tlsConfig tls.Config
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
-	} else {
-		opts = append(opts, grpc.WithInsecure())
 	}
 	conn, err := grpc.DialContext(dCtx, *address, opts...)
 	if err != nil {
