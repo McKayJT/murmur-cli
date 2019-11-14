@@ -63,6 +63,7 @@ Commands:
 
   database query <server id> [filter]
   database get <server id> <user id>
+  database add <server id> <user id> <password>
 
   log query <server id> (<min> <max>)
 

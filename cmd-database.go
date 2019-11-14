@@ -26,4 +26,15 @@ func init() {
 			Id:     &id,
 		}))
 	})
+
+	cmd.Add("add", func(args Args) {
+		server := args.MustServer(0)
+		name := args.MustString(1)
+		password := args.MustString(2)
+		Output(client.DatabaseUserRegister(ctx, &MurmurRPC.DatabaseUser{
+			Server:   server,
+			Name:     &name,
+			Password: &password,
+		}))
+	})
 }
