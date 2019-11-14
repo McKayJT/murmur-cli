@@ -29,6 +29,7 @@ If you are using systemd, just add a drop-in file in
 [Service]
 User=murmur
 RuntimeDirectory="murmur/"
+RuntimeDirectoryMode=0770
 ```
 
 and change your murmur.ini like
