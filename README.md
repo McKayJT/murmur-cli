@@ -2,6 +2,46 @@
 
 murmur-cli provides an interface to a grpc-enabled murmur server.
 
+This is a fork of the [original project](https://github.com/layeh/murmur-cli)
+as the build didn't work for me, and it was missing some features I wanted.
+
+## Installation
+
+    env GOBIN=$PWD go get -u github.com/MckayJT/murmur-cli
+
+I plan to provide binaries for various systems in the future
+so you don't need to have go installed to use it.
+
+## Usage Tips
+
+Secure mode is unlikely to be a working or good idea for you.
+gRPC will do host name checking against the server certificate, and it's
+unlikely you will have a valid certificate that matches an internal
+IP address. Since there is no authentication in murmur for gRPC connections
+opening it up on a public address that you can get a certificate for
+is a security risk.
+
+You can securely set up communications via a unix socket easily.
+If you are using systemd, just add a drop-in file in
+`/etc/systemd/system/murmur.service.d/override.conf` such as:
+
+```
+[Service]
+User=murmur
+RuntimeDirectory="murmur/"
+```
+
+and change your murmur.ini like
+
+```
+grpc="unix:///run/murmur/grpc.sock"
+```
+
+This will create a socket that only the user or group murmur can access.
+Remember to use the --address or set $MURMUR\_ADDRESS to this value
+and set --insecure=true. 
+
+## Syntax
     usage: murmur-cli [flags] [command... [arguments...]]
 
     Flags:
@@ -10,7 +50,7 @@ murmur-cli provides an interface to a grpc-enabled murmur server.
       --timeout="10s"               duration to wait for connection.
       --template=""                 Go text/template template to use when outputing
                                     data. By default, JSON objects are printed.
-      --insecure=false              Disable TLS encryption.
+      --insecure=true               Disable TLS encryption.
       --help                        Print command list.
 
     Commands:
@@ -39,6 +79,7 @@ murmur-cli provides an interface to a grpc-enabled murmur server.
 
       database query <server id> [filter]
       database get <server id> <user id>
+      database add <server id> <user id> <password>  
 
       log query <server id> (<min> <max>)
 
@@ -67,10 +108,7 @@ murmur-cli provides an interface to a grpc-enabled murmur server.
       user get <server id> <session>
       user kick <server id> <session> [reason]
 
-## Installation
 
-    go get -u layeh.com/murmur-cli
-
-## Author
+## Original Author
 
 Tim Cooper (<tim.cooper@layeh.com>)
