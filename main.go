@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"flag"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/MckayJT/murmur-cli/internal/MurmurRPC"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -137,17 +137,19 @@ func main() {
 	}
 
 	// grpc connection
+	dCtx, _ := context.WithTimeout(context.Background(), *timeout)
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithTimeout(*timeout),
 	}
 	if !*insecure {
 		var tlsConfig tls.Config
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
 	}
-	conn, err := grpc.Dial(*address, opts...)
+	conn, err := grpc.DialContext(dCtx, *address, opts...)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Error connecting: ", err)
 		os.Exit(1)
 	}
 	defer conn.Close()
