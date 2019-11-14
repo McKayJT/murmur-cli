@@ -141,7 +141,9 @@ func main() {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}
-	if !*insecure {
+	if *insecure {
+		opts = append(opts, grpc.WithInsecure())
+	} else {
 		var tlsConfig tls.Config
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
 	} else {
