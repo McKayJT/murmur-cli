@@ -106,6 +106,7 @@ func main() {
 	timeout := flag.Duration("timeout", time.Second*10, "")
 	templateText := flag.String("template", "", "")
 	insecure := flag.Bool("insecure", false, "")
+	hostoverride := flag.String("hostoverride", "", "")
 
 	help := flag.Bool("help", false, "")
 	helpShort := flag.Bool("h", false, "")
@@ -145,7 +146,15 @@ func main() {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
 		var tlsConfig tls.Config
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)))
+		creds := credentials.NewTLS(&tlsConfig)
+		if *hostoverride != "" {
+			err := creds.OverrideServerName(*hostoverride)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
 	}
 	conn, err := grpc.DialContext(dCtx, *address, opts...)
 	if err != nil {
