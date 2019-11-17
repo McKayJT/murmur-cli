@@ -32,6 +32,7 @@ Flags:
   --timeout="10s"               duration to wait for connection.
   --template=""                 Go text/template template to use when outputing
                                 data. By default, JSON objects are printed.
+  --hostoverride=""             Expect this host name from the server
   --insecure=false              Disable TLS encryption.
   --help                        Print command list.
 `

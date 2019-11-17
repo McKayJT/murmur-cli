@@ -14,7 +14,6 @@ so you don't need to have go installed to use it.
 
 ## Usage Tips
 
-Secure mode is unlikely to be a working or good idea for you.
 gRPC will do host name checking against the server certificate, and it's
 unlikely you will have a valid certificate that matches an internal
 IP address. Since there is no authentication in murmur for gRPC connections
@@ -42,6 +41,12 @@ This will create a socket that only the user or group murmur can access.
 Remember to use the --address or set $MURMUR\_ADDRESS to this value
 and set --insecure=true. 
 
+You can alsa now use the --hostoverride flag to expect a different name
+from the server than what you are connecting to. So if you use your regular
+certificate for 'murmur.foo.io' in the gRPC settings for murmur, you can
+use --hostoverride="murmur.foo.io' and it will accept the certificate as valid
+if you connect using a local socket or a loopback address.
+
 ## Syntax
     usage: murmur-cli [flags] [command... [arguments...]]
 
@@ -51,6 +56,7 @@ and set --insecure=true.
       --timeout="10s"               duration to wait for connection.
       --template=""                 Go text/template template to use when outputing
                                     data. By default, JSON objects are printed.
+      --hostoverride=""             Expect a different hostname from the server
       --insecure=true               Disable TLS encryption.
       --help                        Print command list.
 
