@@ -108,6 +108,8 @@ func main() {
 	templateText := flag.String("template", "", "")
 	insecure := flag.Bool("insecure", false, "")
 	hostoverride := flag.String("hostoverride", "", "")
+	cert := flag.String("cert", "", "")
+	key := flag.String("key", "", "")
 
 	help := flag.Bool("help", false, "")
 	helpShort := flag.Bool("h", false, "")
@@ -138,6 +140,7 @@ func main() {
 		}
 	}
 
+
 	// grpc connection
 	dCtx, _ := context.WithTimeout(context.Background(), *timeout)
 	opts := []grpc.DialOption{
@@ -147,6 +150,14 @@ func main() {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
 		var tlsConfig tls.Config
+		if *cert != "" && *key != "" {
+			cert, err := tls.LoadX509KeyPair(*cert, *key)
+			if err != nil {
+				fmt.Println("Error loading certficate: %x", err)
+				os.Exit(1)
+			}
+			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+		}
 		creds := credentials.NewTLS(&tlsConfig)
 		if *hostoverride != "" {
 			err := creds.OverrideServerName(*hostoverride)
