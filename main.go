@@ -142,7 +142,6 @@ func main() {
 		}
 	}
 
-
 	// grpc connection
 	dCtx, _ := context.WithTimeout(context.Background(), *timeout)
 	opts := []grpc.DialOption{
