@@ -38,27 +38,32 @@ grpc="unix:///run/murmur/grpc.sock"
 ```
 
 This will create a socket that only the user or group murmur can access.
-Remember to use the --address or set $MURMUR\_ADDRESS to this value
-and set --insecure=true. 
+Remember to use the -address or set $MURMUR\_ADDRESS to this value
+and set -insecure=true.
 
-You can alsa now use the --hostoverride flag to expect a different name
+You can also now use the -hostoverride flag to expect a different name
 from the server than what you are connecting to. So if you use your regular
 certificate for 'murmur.foo.io' in the gRPC settings for murmur, you can
-use --hostoverride="murmur.foo.io' and it will accept the certificate as valid
+use -hostoverride="murmur.foo.io' and it will accept the certificate as valid
 if you connect using a local socket or a loopback address.
+
+I am working on client authentication for murmur. To use this, you need to have
+a certificate and key that can be used when connecting.
 
 ## Syntax
     usage: murmur-cli [flags] [command... [arguments...]]
 
     Flags:
-      --address="127.0.0.1:50051"   address and port of murmur's grpc endpoint
+      -address="127.0.0.1:50051"   address and port of murmur's grpc endpoint
                                     (can also be set via $MURMUR_ADDRESS).
-      --timeout="10s"               duration to wait for connection.
-      --template=""                 Go text/template template to use when outputing
+      -timeout="10s"               duration to wait for connection.
+      -template=""                 Go text/template template to use when outputing
                                     data. By default, JSON objects are printed.
-      --hostoverride=""             Expect a different hostname from the server
-      --insecure=true               Disable TLS encryption.
-      --help                        Print command list.
+      -hostoverride=""             Expect a different hostname from the server
+      -cert=""                     Client certificate (pem format)
+      -key=""                      Client certeficate key (pem format), unencrypted
+      -insecure=true               Disable TLS encryption.
+      -help                        Print command list.
 
     Commands:
       acl get <server id> <channel id>

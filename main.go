@@ -27,14 +27,16 @@ const usage = `murmur-cli provides an interface to a grpc-enabled murmur server.
 usage: murmur-cli [flags] [command... [arguments...]]
 
 Flags:
-  --address="127.0.0.1:50051"   address and port of murmur's grpc endpoint
+  -address="127.0.0.1:50051"   address and port of murmur's grpc endpoint
                                 (can also be set via $MURMUR_ADDRESS).
-  --timeout="10s"               duration to wait for connection.
-  --template=""                 Go text/template template to use when outputing
+  -timeout="10s"               duration to wait for connection.
+  -template=""                 Go text/template template to use when outputing
                                 data. By default, JSON objects are printed.
-  --hostoverride=""             Expect this host name from the server
-  --insecure=false              Disable TLS encryption.
-  --help                        Print command list.
+  -hostoverride=""             Expect this host name from the server
+  -cert=""                     Client certificate (pem format)
+  -key=""                      Client certificate key (pem format), unencrypted
+  -insecure=false              Disable TLS encryption.
+  -help                        Print command list.
 `
 
 const usageCommands = `
