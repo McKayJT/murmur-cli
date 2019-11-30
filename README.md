@@ -9,8 +9,24 @@ as the build didn't work for me, and it was missing some features I wanted.
 
     env GOBIN=$PWD go get -u github.com/MckayJT/murmur-cli
 
-I plan to provide binaries for various systems in the future
-so you don't need to have go installed to use it.
+## Precompiled downloads
+
+New and fresh, supporting features that murmur doesn't even have yet, client
+side TLS certificate authentication.
+
+[Grab them today from my website!](https://octet.space/murmur-cli/)
+
+All the packages come with a signature file included using
+[minisign](https://jedisct1.github.io/minisign/). My key is
+
+```
+minisign public key 6125BC1D7F42FCBB
+RWS7/EJ/HbwlYZWZHMuSK11XUJvhTHnWzFP3mz0nb9WWQt4j98ozJ5ou
+```
+
+You can verify these with minisign or they also verify with signify if you're
+on OpenBSD.
+
 
 ## Usage Tips
 
