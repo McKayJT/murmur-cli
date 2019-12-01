@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
-	"flag"
+	_ "encoding/json"
 	"fmt"
+	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2/altsrc"
 	"os"
+	"strings"
 	"text/template"
 	"time"
 
@@ -17,11 +19,10 @@ import (
 )
 
 var (
-	root   = NewCommand()
-	void   = &MurmurRPC.Void{}
-	ctx    = context.Background()
-	client MurmurRPC.V1Client
+	commands []*cli.Command
 )
+
+/*
 
 const usage = `murmur-cli provides an interface to a grpc-enabled murmur server.
 usage: murmur-cli [flags] [command... [arguments...]]
@@ -96,72 +97,156 @@ Commands:
   user kick <server id> <session> [reason]
 `
 
+*/
 var outputTemplate *template.Template
+var app *cli.App
 
 func main() {
-	// Flags
-	defaultAddress := "127.0.0.1:50051"
-	if envAddress := os.Getenv("MURMUR_ADDRESS"); envAddress != "" {
-		defaultAddress = envAddress
+	app = cli.NewApp()
+	app.HelpName = "murmur-cli"
+	app.Usage = "manage murmur using gRPC"
+	app.Description = "manage murmur using gRPC"
+	app.UseShortOptionHandling = false
+	app.Authors = []*cli.Author{&cli.Author{
+		Name:  "John McKay",
+		Email: "",
+	},
+	}
+	configPaths := GetDefaultConfigPaths()
+	paths := strings.Join(configPaths, string(os.PathListSeparator))
+	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "noconfig",
+			Usage: "disable configuration file",
+			Value: false,
+		},
+		&cli.PathFlag{
+			Name:        "config",
+			Usage:       "Load configuration from `FILE`",
+			TakesFile:   true,
+			DefaultText: paths,
+		},
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "address",
+			Aliases:     []string{"a"},
+			Usage:       "address and port to connect to server",
+			EnvVars:     []string{"MURMUR_ADDRESS"},
+			DefaultText: "127.0.0.1:50051",
+			Value:       "127.0.0.1:50051",
+			TakesFile:   false,
+		}),
+		altsrc.NewDurationFlag(&cli.DurationFlag{
+			Name:        "timeout",
+			Aliases:     []string{"t"},
+			Usage:       "Timeout when connecting to server",
+			DefaultText: "10s",
+			Value:       time.Second * 10,
+		}),
+		altsrc.NewBoolFlag(&cli.BoolFlag{
+			Name:        "insecure",
+			Usage:       "Do not attempt TLS connection",
+			DefaultText: "false",
+			Value:       false,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "hostoverride",
+			Usage:       "Override server certificate hostname check",
+			DefaultText: "none",
+			Value:       "",
+			TakesFile:   false,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "cert",
+			Aliases:     []string{"c"},
+			Usage:       "PEM client TLS certificate to use",
+			DefaultText: "none",
+			Value:       "",
+			TakesFile:   false,
+		}),
+		altsrc.NewStringFlag(&cli.StringFlag{
+			Name:        "key",
+			Aliases:     []string{"k"},
+			Usage:       "Unencrypted PEM key for client certificate",
+			DefaultText: "none",
+			Value:       "",
+			TakesFile:   false,
+		}),
+	}
+	app.Commands = append(app.Commands, commands...)
+	app.Before = finishSetup
+	app.Run(os.Args)
+}
+
+func finishSetup(ctx *cli.Context) error {
+	err := loadSettings(ctx)
+	if err != nil {
+		return err
+	}
+	err = setupConnection(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadSettings(ctx *cli.Context) error {
+	var paths []string
+	if ctx.Bool("noconfig") {
+		return nil
 	}
 
-	address := flag.String("address", defaultAddress, "")
-	timeout := flag.Duration("timeout", time.Second*10, "")
-	templateText := flag.String("template", "", "")
-	insecure := flag.Bool("insecure", false, "")
-	hostoverride := flag.String("hostoverride", "", "")
-	cert := flag.String("cert", "", "")
-	key := flag.String("key", "", "")
-
-	help := flag.Bool("help", false, "")
-	helpShort := flag.Bool("h", false, "")
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage)
-		if *help || *helpShort {
-			fmt.Fprintf(os.Stderr, usageCommands)
+	if len(ctx.String("config")) != 0 {
+		paths = append(paths, ctx.String("config"))
+	} else {
+		paths = GetDefaultConfigPaths()
+	}
+	for _, path := range paths {
+		stat, err := os.Stat(path)
+		if err != nil || !stat.Mode().IsRegular() {
+			continue
 		}
-	}
-
-	flag.Parse()
-
-	if *help || *helpShort {
-		fmt.Fprintf(os.Stderr, usage)
-		if *help || *helpShort {
-			fmt.Fprintf(os.Stderr, usageCommands)
-		}
-		os.Exit(0)
-	}
-
-	if *templateText != "" {
-		var err error
-		outputTemplate, err = template.New("output").Parse(*templateText)
+		configSource, err := altsrc.NewTomlSourceFromFile(path)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			continue
 		}
+		err = altsrc.ApplyInputSourceValues(ctx, configSource, ctx.App.Flags)
+		if err != nil {
+			continue
+		}
+		ctx.App.Metadata["configSource"] = &configSource
+		return nil
 	}
+	return nil
+}
+
+func setupConnection(ctx *cli.Context) error {
+	address := ctx.String("address")
+	timeout := ctx.Duration("timeout")
+	insecure := ctx.Bool("insecure")
+	hostoverride := ctx.String("hostoverride")
+	cert := ctx.String("cert")
+	key := ctx.String("key")
 
 	// grpc connection
-	dCtx, _ := context.WithTimeout(context.Background(), *timeout)
+	dCtx, _ := context.WithTimeout(context.Background(), timeout)
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}
-	if *insecure {
+	if insecure {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
 		var tlsConfig tls.Config
-		if *cert != "" && *key != "" {
-			cert, err := tls.LoadX509KeyPair(*cert, *key)
+		if cert != "" && key != "" {
+			cert, err := tls.LoadX509KeyPair(cert, key)
 			if err != nil {
-				fmt.Println("Error loading certficate: %x", err)
+				fmt.Printf("Error loading certificate: %v\n", err)
 				os.Exit(1)
 			}
 			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 		}
 		creds := credentials.NewTLS(&tlsConfig)
-		if *hostoverride != "" {
-			err := creds.OverrideServerName(*hostoverride)
+		if hostoverride != "" {
+			err := creds.OverrideServerName(hostoverride)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -169,32 +254,37 @@ func main() {
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	}
-	conn, err := grpc.DialContext(dCtx, *address, opts...)
+	conn, err := grpc.DialContext(dCtx, address, opts...)
 	if err != nil {
-		fmt.Println("Error connecting: ", err)
+		fmt.Printf("Error connecting: %v\n", err)
+		fmt.Printf("timeout: %v\n", timeout)
 		os.Exit(1)
 	}
-	defer conn.Close()
 
-	client = MurmurRPC.NewV1Client(conn)
-
-	defer func() {
-		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if ok {
-				jsonErr := struct {
-					Error string `json:"error"`
-				}{
-					Error: err.Error(),
+	clien := MurmurRPC.NewV1Client(conn)
+	ctx.App.Metadata["grpcConnection"] = &conn
+	ctx.App.Metadata["grpcClient"] = clien
+	return nil
+	//defer conn.Close()
+	/*
+		defer func() {
+			if r := recover(); r != nil {
+				err, ok := r.(error)
+				if ok {
+					jsonErr := struct {
+						Error string `json:"error"`
+					}{
+						Error: err.Error(),
+					}
+					json.NewEncoder(os.Stderr).Encode(&jsonErr)
+					os.Exit(3)
 				}
-				json.NewEncoder(os.Stderr).Encode(&jsonErr)
-				os.Exit(3)
 			}
-		}
-	}()
+		}()
 
-	if root.Do() != nil {
-		flag.Usage()
-		os.Exit(1)
-	}
+		if root.Do() != nil {
+			flag.Usage()
+			os.Exit(1)
+		}
+	*/
 }

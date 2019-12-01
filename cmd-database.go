@@ -1,40 +1,88 @@
 package main
 
 import (
-	"github.com/MckayJT/murmur-cli/internal/MurmurRPC"
+	mr "github.com/MckayJT/murmur-cli/internal/MurmurRPC"
+	"github.com/urfave/cli/v2"
 )
 
 func init() {
-	cmd := root.Add("database")
+	cmd := &cli.Command{
+		Name:     "database",
+		Usage:    "manage user database",
+		HideHelp: true,
+	}
 
-	cmd.Add("query", func(args Args) {
-		server := args.MustServer(0)
-		query := &MurmurRPC.DatabaseUser_Query{
-			Server: server,
-		}
-		if filter, ok := args.String(1); ok {
-			query.Filter = &filter
-		}
-		Output(client.DatabaseUserQuery(ctx, query))
-	})
+	subs := []*cli.Command{
+		&cli.Command{
+			Name:      "query",
+			Usage:     "query user database",
+			ArgsUsage: "<server id> [filter]",
+			Action:    doDBQuery,
+		},
+		&cli.Command{
+			Name:      "get",
+			Usage:     "Get info on one user",
+			ArgsUsage: "<serever id> <user id>",
+			Action:    doDBGet,
+		},
+		&cli.Command{
+			Name:      "add",
+			Usage:     "add user to database",
+			ArgsUsage: "<server id> <username> <password>",
+			Action:    doDBAdd,
+		},
+	}
+	cmd.Subcommands = subs
+	commands = append(commands, cmd)
+}
 
-	cmd.Add("get", func(args Args) {
-		server := args.MustServer(0)
-		id := args.MustUint32(1)
-		Output(client.DatabaseUserGet(ctx, &MurmurRPC.DatabaseUser{
-			Server: server,
-			Id:     &id,
-		}))
-	})
+func doDBQuery(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+	query := &mr.DatabaseUser_Query{
+		Server: args[0].Server(),
+	}
+	filter := ctx.Args().Get(1)
+	if len(filter) != 0 {
+		query.Filter = &filter
+	}
+	resp, err := client.DatabaseUserQuery(mCtx, query)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(resp)
+}
 
-	cmd.Add("add", func(args Args) {
-		server := args.MustServer(0)
-		name := args.MustString(1)
-		password := args.MustString(2)
-		Output(client.DatabaseUserRegister(ctx, &MurmurRPC.DatabaseUser{
-			Server:   server,
-			Name:     &name,
-			Password: &password,
-		}))
+func doDBGet(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustUint32)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+	resp, err := client.DatabaseUserGet(mCtx, &mr.DatabaseUser{
+		Server: args[0].Server(),
+		Id:     args[1].u32_p(),
 	})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(resp)
+}
+
+func doDBAdd(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustString, MustString)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+
+	resp, err := client.DatabaseUserRegister(mCtx, &mr.DatabaseUser{
+		Server:   args[0].Server(),
+		Name:     args[1].s_p(),
+		Password: args[2].s_p(),
+	})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(resp)
 }

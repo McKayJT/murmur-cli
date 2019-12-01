@@ -1,34 +1,67 @@
 package main
 
-import (
-	"github.com/MckayJT/murmur-cli/internal/MurmurRPC"
-)
+import mr "github.com/MckayJT/murmur-cli/internal/MurmurRPC"
+import "github.com/urfave/cli/v2"
 
 func init() {
-	cmd := root.Add("acl")
+	cmd := &cli.Command{
+		Name:                   "acl",
+		Usage:                  "manage and view acl permissions",
+		ArgsUsage:              "[get|get-effective-permissions]",
+		HideHelp:               true,
+		UseShortOptionHandling: false,
+	}
 
-	cmd.Add("get", func(args Args) {
-		server := args.MustServer(0)
-		channelID := args.MustUint32(1)
-		Output(client.ACLGet(ctx, &MurmurRPC.Channel{
-			Server: server,
-			Id:     &channelID,
-		}))
+	subs := []*cli.Command{
+		&cli.Command{
+			Name:      "get",
+			Usage:     "get ACL list for a channel",
+			ArgsUsage: "<server id> <channel id>",
+			Action:    doACLGet,
+		},
+		&cli.Command{
+			Name:      "get-effective-permissions",
+			Usage:     "get effective permissions for a user",
+			ArgsUsage: "<server id> <sessions> <channel id>",
+			Action:    doEffectiveACL,
+		},
+	}
+	cmd.Subcommands = subs
+	commands = append(commands, cmd)
+}
+
+func doACLGet(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustUint32)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+	ret, err := client.ACLGet(mCtx, &mr.Channel{
+		Server: args[0].Server(),
+		Id:     args[1].u32_p(),
 	})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(ret)
+}
 
-	cmd.Add("get-effective-permissions", func(args Args) {
-		server := args.MustServer(0)
-		session := args.MustUint32(1)
-		channelID := args.MustUint32(2)
-		Output(client.ACLGetEffectivePermissions(ctx, &MurmurRPC.ACL_Query{
-			Server: server,
-			User: &MurmurRPC.User{
-				Session: &session,
+func doEffectiveACL(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustUint32, MustUint32)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+	ret, err := client.ACLGetEffectivePermissions(mCtx,
+		&mr.ACL_Query{
+			Server: args[0].Server(),
+			User: &mr.User{
+				Session: args[1].u32_p(),
 			},
-			Channel: &MurmurRPC.Channel{
-				Id: &channelID,
+			Channel: &mr.Channel{
+				Id: args[2].u32_p(),
 			},
-		}))
-	})
-
+		})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(ret)
 }

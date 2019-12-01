@@ -1,34 +1,76 @@
 package main
 
 import (
+	"github.com/urfave/cli/v2"
 	"io"
 )
 
 func init() {
-	cmd := root.Add("meta")
+	cmd := &cli.Command{
+		Name:      "meta",
+		Usage:     "[uptime|version|events]",
+		ArgsUsage: "Gets metadata from murmur",
+		HideHelp:  true,
+	}
 
-	cmd.Add("uptime", func(args Args) {
-		Output(client.GetUptime(ctx, void))
-	})
+	subs := []*cli.Command{
+		&cli.Command{
+			Name:   "uptime",
+			Usage:  "gets server uptime",
+			Action: doUptime,
+		},
+		&cli.Command{
+			Name:   "version",
+			Usage:  "gets murmur version",
+			Action: doVersion,
+		},
+		&cli.Command{
+			Name:   "events",
+			Usage:  "listen for meta events",
+			Action: doEvents,
+		},
+	}
+	cmd.Subcommands = subs
 
-	cmd.Add("version", func(args Args) {
-		Output(client.GetVersion(ctx, void))
-	})
+	commands = append(commands, cmd)
+}
 
-	cmd.Add("events", func(args Args) {
-		stream, err := client.Events(ctx, void)
+func doUptime(ctx *cli.Context) error {
+	client, mCtx, _, err := ProcessArguments(ctx)
+	resp, err := client.GetUptime(mCtx, RPCVoid)
+	if err != nil {
+		return err
+	}
+	return Output(resp)
+}
+
+func doVersion(ctx *cli.Context) error {
+	client, mCtx, _, err := ProcessArguments(ctx)
+	resp, err := client.GetVersion(mCtx, RPCVoid)
+	if err != nil {
+		return err
+	}
+	return Output(resp)
+}
+
+func doEvents(ctx *cli.Context) error {
+	client, mCtx, _, err := ProcessArguments(ctx)
+	stream, err := client.Events(mCtx, RPCVoid)
+	if err != nil {
+		return err
+	}
+	for {
+		msg, err := stream.Recv()
 		if err != nil {
-			panic(err)
-		}
-		for {
-			msg, err := stream.Recv()
-			if err != nil {
-				if err != io.EOF {
-					panic(err)
-				}
-				return
+			if err != io.EOF {
+				return err
 			}
-			Output(msg, nil)
+			return nil
 		}
-	})
+		err = Output(msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

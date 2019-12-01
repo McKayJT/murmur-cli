@@ -1,65 +1,112 @@
 package main
 
 import (
-	"github.com/MckayJT/murmur-cli/internal/MurmurRPC"
-	"github.com/golang/protobuf/proto"
+	mr "github.com/MckayJT/murmur-cli/internal/MurmurRPC"
+	"github.com/urfave/cli/v2"
 	"io"
 )
 
 func init() {
-	cmd := root.Add("contextaction")
+	cmd := &cli.Command{
+		Name:     "contextaction",
+		Usage:    "do actions based on other actions",
+		HideHelp: true,
+	}
+	subs := []*cli.Command{
+		&cli.Command{
+			Name:      "add",
+			Usage:     "add new contextaction",
+			ArgsUsage: "<server id> <actionmask> <action> <text> <session id>",
+			Action:    doAddAction,
+		},
+		&cli.Command{
+			Name:      "remove",
+			Usage:     "remove contextaction",
+			ArgsUsage: "<server id> <action> [session]",
+			Action:    doRemoveAction,
+		},
+		&cli.Command{
+			Name:      "events",
+			Usage:     "listen for contextactions",
+			ArgsUsage: "<server id> <action>",
+			Action:    doEventAction,
+		},
+	}
 
-	cmd.Add("add", func(args Args) {
-		server := args.MustServer(0)
-		context := args.MustBitmask(1, MurmurRPC.ContextAction_Context_value, false)
-		action := args.MustString(2)
-		text := args.MustString(3)
-		session := args.MustUint32(4)
-		Output(client.ContextActionAdd(ctx, &MurmurRPC.ContextAction{
-			Server:  server,
-			Context: proto.Uint32(uint32(context)),
-			Action:  &action,
-			Text:    &text,
-			User: &MurmurRPC.User{
-				Session: &session,
-			},
-		}))
+	cmd.Subcommands = subs
+	commands = append(commands, cmd)
+}
+
+func doAddAction(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustBitmask, MustString, MustString, MustUint32)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+
+	resp, err := client.ContextActionAdd(mCtx, &mr.ContextAction{
+		Server:  args[0].Server(),
+		Context: args[1].u32_p(),
+		Action:  args[2].s_p(),
+		Text:    args[3].s_p(),
+		User: &mr.User{
+			Session: args[4].u32_p(),
+		},
 	})
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(resp)
+}
 
-	cmd.Add("remove", func(args Args) {
-		server := args.MustServer(0)
-		action := args.MustString(1)
-		contextAction := &MurmurRPC.ContextAction{
-			Server: server,
-			Action: &action,
+func doRemoveAction(ctx *cli.Context) error {
+	funcs := []ProcessArgFunc{MustServer, MustString}
+	if ctx.NArg() > 2 {
+		funcs = append(funcs, MustUint32)
+	}
+	client, mCtx, args, err := ProcessArguments(ctx, funcs...)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+
+	contextAction := &mr.ContextAction{
+		Server: args[0].Server(),
+		Action: args[1].s_p(),
+	}
+	if len(args) > 2 {
+		contextAction.User = &mr.User{
+			Session: args[2].u32_p(),
 		}
-		if session, ok := args.Uint32(2); ok {
-			contextAction.User = &MurmurRPC.User{
-				Session: &session,
-			}
-		}
-		Output(client.ContextActionRemove(ctx, contextAction))
+	}
+	resp, err := client.ContextActionRemove(mCtx, contextAction)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return Output(resp)
+}
+
+func doEventAction(ctx *cli.Context) error {
+	client, mCtx, args, err := ProcessArguments(ctx, MustServer, MustString)
+	if err != nil {
+		return NewUsageError(ctx, err)
+	}
+	stream, err := client.ContextActionEvents(mCtx, &mr.ContextAction{
+		Server: args[0].Server(),
+		Action: args[1].s_p(),
 	})
-
-	cmd.Add("events", func(args Args) {
-		server := args.MustServer(0)
-		action := args.MustString(1)
-		stream, err := client.ContextActionEvents(ctx, &MurmurRPC.ContextAction{
-			Server: server,
-			Action: &action,
-		})
+	if err != nil {
+		return cli.NewExitError(err, 2)
+	}
+	for {
+		msg, err := stream.Recv()
 		if err != nil {
-			panic(err)
-		}
-		for {
-			msg, err := stream.Recv()
-			if err != nil {
-				if err != io.EOF {
-					panic(err)
-				}
-				return
+			if err != io.EOF {
+				return cli.NewExitError(err, 2)
 			}
-			Output(msg, nil)
+			return nil
 		}
-	})
+		err = Output(msg)
+		if err != nil {
+			return cli.NewExitError(err, 2)
+		}
+	}
 }
