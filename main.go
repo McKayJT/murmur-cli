@@ -174,6 +174,13 @@ func main() {
 	}
 	app.Commands = append(app.Commands, commands...)
 	app.Before = finishSetup
+	defer func() {
+		conn, ok := app.Metadata["grpcConnection"]
+		if ok {
+			conn.(*grpc.ClientConn).Close()
+		}
+	}()
+	cli.OsExiter = exitCleanly
 	app.Run(os.Args)
 }
 
@@ -262,29 +269,17 @@ func setupConnection(ctx *cli.Context) error {
 	}
 
 	clien := MurmurRPC.NewV1Client(conn)
-	ctx.App.Metadata["grpcConnection"] = &conn
+	ctx.App.Metadata["grpcConnection"] = conn
 	ctx.App.Metadata["grpcClient"] = clien
 	return nil
-	//defer conn.Close()
-	/*
-		defer func() {
-			if r := recover(); r != nil {
-				err, ok := r.(error)
-				if ok {
-					jsonErr := struct {
-						Error string `json:"error"`
-					}{
-						Error: err.Error(),
-					}
-					json.NewEncoder(os.Stderr).Encode(&jsonErr)
-					os.Exit(3)
-				}
-			}
-		}()
+}
 
-		if root.Do() != nil {
-			flag.Usage()
-			os.Exit(1)
+func exitCleanly(code int) {
+	if app != nil {
+		conn, ok := app.Metadata["grpcConnection"]
+		if ok {
+			conn.(*grpc.ClientConn).Close()
 		}
-	*/
+	}
+	os.Exit(code)
 }
