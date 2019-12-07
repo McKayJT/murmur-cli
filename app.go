@@ -145,7 +145,8 @@ func setupConnection(ctx *cli.Context) error {
 	key := ctx.String("key")
 
 	// grpc connection
-	dCtx, _ := context.WithTimeout(context.Background(), timeout)
+	dCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 	}

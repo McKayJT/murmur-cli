@@ -169,5 +169,4 @@ func doFilterText(ctx *cli.Context) error {
 		}
 		stream.Send(&resp)
 	}
-	return nil
 }

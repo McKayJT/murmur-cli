@@ -72,5 +72,4 @@ func doEvents(ctx *cli.Context) error {
 			return err
 		}
 	}
-	return nil
 }
