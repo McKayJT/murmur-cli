@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/urfave/cli/v2"
 	"os"
+	"context"
 )
 
 var (
@@ -11,7 +12,15 @@ var (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		defer CloseConnection()
+		defer cancel()
+		interrupts := CreateInterruptChannel()
+		<-interrupts
+	}()
 	app = CreateApp()
 	defer CloseConnection()
-	app.Run(os.Args)
+	app.RunContext(ctx, os.Args)
 }

@@ -189,7 +189,6 @@ func CloseConnection() {
 		conn, ok := app.Metadata["grpcConnection"]
 		if ok {
 			conn.(*grpc.ClientConn).Close()
-			fmt.Println("Connection closed!")
 		}
 	}
 }
