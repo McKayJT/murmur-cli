@@ -5,14 +5,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/urfave/cli/v2"
 	"os"
-	"fmt"
 )
 
 var (
 	commands []*cli.Command
-	app *cli.App
+	app      *cli.App
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 		}
 		fish.Close()
 	} else {
-		fmt.Println("murmur-cli.fish already exists; I will not overwrite");
+		fmt.Println("murmur-cli.fish already exists; I will not overwrite")
 	}
 
 	_, err = os.Stat("murmur-cli.md")
@@ -58,6 +58,6 @@ func main() {
 		md.Close()
 
 	} else {
-		fmt.Println("murmur-cli.md already exists; I will not overwrite");
+		fmt.Println("murmur-cli.md already exists; I will not overwrite")
 	}
 }

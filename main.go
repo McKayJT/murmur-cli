@@ -3,14 +3,14 @@
 package main
 
 import (
+	"context"
 	"github.com/urfave/cli/v2"
 	"os"
-	"context"
 )
 
 var (
 	commands []*cli.Command
-	app *cli.App
+	app      *cli.App
 )
 
 func main() {

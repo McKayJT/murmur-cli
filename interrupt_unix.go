@@ -3,9 +3,9 @@
 package main
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
 	"os/signal"
-	"golang.org/x/sys/unix"
 )
 
 func CreateInterruptChannel() <-chan os.Signal {
