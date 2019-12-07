@@ -148,7 +148,7 @@ func setupConnection(ctx *cli.Context) error {
 	dCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	opts := []grpc.DialOption{
-		grpc.WithBlock(),
+		//grpc.WithBlock(),
 	}
 	if insecure {
 		opts = append(opts, grpc.WithInsecure())
